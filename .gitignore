@@ -63,6 +63,13 @@ Thumbs.db
 *.swp
 *.swo
 
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db
+
 # AI / IDE caches
 .agents/
 .gemini/
+

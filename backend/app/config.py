@@ -12,3 +12,8 @@ LLM_MODEL = os.getenv(
     "LLM_MODEL",
     "qwen3:8b"
 )
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/mitraai"
+)
