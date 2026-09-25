@@ -1,7 +1,10 @@
+import io
+import csv
 import json
+import time
 import logging
-from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Depends, Query
+from typing import Any, Dict, List, Optional, Union
+from fastapi import FastAPI, HTTPException, Depends, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -11,14 +14,19 @@ from sqlalchemy import text
 from .llm import generate_response, stream_response
 from .database import engine, Base, get_db, SessionLocal
 from . import crud
+from .schema_manager import get_target_db_schema, get_schema_context
+from .sql_engine import generate_sql, generate_sql_stream, extract_sql
+from .sql_validator import validate_sql
+from .db_executor import execute_query
+from .result_processor import process_results
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("mitraai")
 
 app = FastAPI(
     title="MitraAI",
-    description="LLM-Based Multilingual Conversational Chatbot with Language Selector & History",
-    version="0.3.5",
+    description="LLM-Based Multilingual Conversational Chatbot & NL-to-SQL System",
+    version="0.4.0",
 )
 
 
@@ -43,6 +51,7 @@ app.add_middleware(
 )
 
 
+# ── Pydantic Schemas ─────────────────────────────────────────────────
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = "default"
@@ -84,6 +93,35 @@ class SessionSchema(BaseModel):
         from_attributes = True
 
 
+class SQLRequest(BaseModel):
+    query: str
+    language: Optional[str] = "auto"
+    session_id: Optional[str] = "default"
+    db_path: Optional[str] = None
+
+
+class ExportRequest(BaseModel):
+    query: Optional[str] = None
+    sql: Optional[str] = None
+    db_path: Optional[str] = None
+    data: Optional[List[Dict[str, Any]]] = None
+
+
+def resolve_language_info(lang: Optional[str]) -> tuple[str, str]:
+    """Maps language input code/string to standard tuple (lang_code, lang_name)."""
+    if not lang or lang.lower() in ("auto", "auto-detect", "en", "english"):
+        return "en", "English"
+    lower = lang.lower()
+    if "hi" in lower or "हिंदी" in lang:
+        return "hi", "Hindi"
+    if "mr" in lower or "मराठी" in lang:
+        return "mr", "Marathi"
+    if "hinglish" in lower:
+        return "hinglish", "Hinglish"
+    return "en", "English"
+
+
+# ── Root & Health Endpoints ──────────────────────────────────────────
 @app.get("/")
 def root():
     return {
@@ -219,7 +257,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     session_id = request.session_id or "default"
     target_language = request.target_language or "Auto-Detect"
 
-    # Fetch prior history for context memory before saving current msg
     prior_messages = []
     try:
         raw_msgs = crud.get_messages(db, session_id=session_id)
@@ -227,21 +264,18 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"Could not load prior history: {e}")
 
-    # 1. Save user message to DB
     try:
         crud.add_message(db, session_id=session_id, role="user", content=request.message.strip())
     except Exception as e:
         logger.warning(f"Could not save user message to DB: {e}")
 
     try:
-        # 2. Generate LLM response with conversation context and target language
         response = generate_response(
             request.message,
             history=prior_messages,
             target_language=target_language
         )
 
-        # 3. Save assistant message to DB
         try:
             crud.add_message(db, session_id=session_id, role="assistant", content=response)
         except Exception as e:
@@ -260,7 +294,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         )
 
 
-# ── Streaming endpoint with Memory Context & Language Control ─────────
 @app.post("/chat/stream")
 def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     """Server-Sent Events endpoint that streams tokens in selected target language."""
@@ -274,7 +307,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     session_id = request.session_id or "default"
     target_language = request.target_language or "Auto-Detect"
 
-    # Fetch prior history for context memory
     prior_messages = []
     try:
         raw_msgs = crud.get_messages(db, session_id=session_id)
@@ -282,7 +314,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     except Exception as e:
         logger.warning(f"Could not load prior history: {e}")
 
-    # Save user message to DB
     try:
         crud.add_message(db, session_id=session_id, role="user", content=request.message.strip())
     except Exception as e:
@@ -300,7 +331,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 payload = json.dumps({"token": token})
                 yield f"data: {payload}\n\n"
 
-            # Save full assistant message to DB when stream completes
             if accumulated_text.strip():
                 try:
                     with SessionLocal() as db_session:
@@ -308,7 +338,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 except Exception as save_err:
                     logger.warning(f"Failed to save streamed assistant message to DB: {save_err}")
 
-            # Signal stream end
             yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -320,4 +349,242 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+# ── NL-to-SQL Endpoints ───────────────────────────────────────────────
+
+@app.get("/sql/schema")
+def get_db_schema(db_path: Optional[str] = Query(None)):
+    """Returns target DB schema introspected via SQLAlchemy."""
+    try:
+        schema = get_target_db_schema(db_path)
+        schema_context = get_schema_context("", db_path)
+        return {
+            "tables": schema.get("tables", []),
+            "columns": schema.get("columns", {}),
+            "foreign_keys": schema.get("foreign_keys", []),
+            "schema_context": schema_context,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch schema: {str(e)}")
+
+
+@app.post("/sql/stream")
+def stream_sql_query(request: SQLRequest, db: Session = Depends(get_db)):
+    """Server-Sent Events endpoint for streaming SQL generation."""
+    if not request.query or not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
+
+    try:
+        schema_context = get_schema_context(request.query, request.db_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load schema context: {str(e)}")
+
+    history = []
+    if request.session_id:
+        try:
+            raw_msgs = crud.get_messages(db, session_id=request.session_id)
+            history = [{"role": m.role, "content": m.content} for m in raw_msgs]
+        except Exception as e:
+            logger.warning(f"Could not load history for stream: {e}")
+
+    def event_generator():
+        accumulated_sql = ""
+        try:
+            for token in generate_sql_stream(
+                query=request.query,
+                schema=schema_context,
+                language=request.language,
+                history=history,
+            ):
+                accumulated_sql += token
+                payload = json.dumps({"token": token})
+                yield f"data: {payload}\n\n"
+
+            clean_sql = extract_sql(accumulated_sql)
+            done_payload = json.dumps({"done": True, "sql": clean_sql})
+            yield f"data: {done_payload}\n\n"
+        except Exception as e:
+            err_payload = json.dumps({"error": str(e)})
+            yield f"data: {err_payload}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/sql/execute")
+def execute_sql_query(request: SQLRequest, db: Session = Depends(get_db)):
+    """
+    Complete NL-to-SQL endpoint:
+    Generates SQL, validates safety, executes against target DB, and returns visual payload.
+    """
+    start_time = time.time()
+
+    if not request.query or not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
+
+    lang_code, lang_name = resolve_language_info(request.language)
+
+    # 1. Fetch DB schema
+    try:
+        schema_context = get_schema_context(request.query, request.db_path)
+        target_schema = get_target_db_schema(request.db_path)
+    except Exception as e:
+        logger.error(f"Error fetching schema: {e}")
+        return {
+            "success": False,
+            "language": lang_code,
+            "language_name": lang_name,
+            "sql": "",
+            "error": f"Failed to inspect database schema: {str(e)}",
+            "results": [],
+            "summary": "Database schema error.",
+            "chart_type": None,
+            "chart_data": {},
+            "count": 0,
+            "execution_time": round(time.time() - start_time, 4),
+        }
+
+    # 2. Fetch history if session_id provided
+    history = []
+    if request.session_id:
+        try:
+            raw_msgs = crud.get_messages(db, session_id=request.session_id)
+            history = [{"role": m.role, "content": m.content} for m in raw_msgs]
+        except Exception as e:
+            logger.warning(f"Could not load history for SQL generation: {e}")
+
+    # 3. Generate SQL from query
+    try:
+        generated_sql = generate_sql(
+            query=request.query,
+            schema=schema_context,
+            language=request.language,
+            history=history,
+        )
+    except Exception as e:
+        logger.error(f"SQL generation failed: {e}")
+        elapsed = round(time.time() - start_time, 4)
+        return {
+            "success": False,
+            "language": lang_code,
+            "language_name": lang_name,
+            "sql": "",
+            "error": f"SQL generation failed: {str(e)}",
+            "results": [],
+            "summary": f"Could not generate SQL for query: {request.query}",
+            "chart_type": None,
+            "chart_data": {},
+            "count": 0,
+            "execution_time": elapsed,
+        }
+
+    # 4. Validate SQL statement
+    is_valid, val_msg = validate_sql(generated_sql, schema=target_schema)
+    if not is_valid:
+        elapsed = round(time.time() - start_time, 4)
+        return {
+            "success": False,
+            "language": lang_code,
+            "language_name": lang_name,
+            "sql": generated_sql,
+            "error": f"SQL validation failed: {val_msg}",
+            "results": [],
+            "summary": f"Generated SQL was rejected due to safety rules: {val_msg}",
+            "chart_type": None,
+            "chart_data": {},
+            "count": 0,
+            "execution_time": elapsed,
+        }
+
+    # 5. Execute SQL query against target DB
+    results, db_err = execute_query(generated_sql, db_path=request.db_path)
+    if db_err:
+        elapsed = round(time.time() - start_time, 4)
+        return {
+            "success": False,
+            "language": lang_code,
+            "language_name": lang_name,
+            "sql": generated_sql,
+            "error": db_err,
+            "results": [],
+            "summary": f"Database execution error: {db_err}",
+            "chart_type": None,
+            "chart_data": {},
+            "count": 0,
+            "execution_time": elapsed,
+        }
+
+    # 6. Process results for summary & visualization
+    processed = process_results(results, query=request.query)
+    elapsed = round(time.time() - start_time, 4)
+
+    # Save to history if session_id active
+    if request.session_id:
+        try:
+            crud.add_message(db, session_id=request.session_id, role="user", content=request.query)
+            crud.add_message(db, session_id=request.session_id, role="assistant", content=f"SQL: {generated_sql}\nResult: {processed['summary']}")
+        except Exception as e:
+            logger.warning(f"Failed to record SQL query in message history: {e}")
+
+    return {
+        "success": True,
+        "language": lang_code,
+        "language_name": lang_name,
+        "sql": generated_sql,
+        "results": processed.get("data", []),
+        "summary": processed.get("summary", ""),
+        "chart_type": processed.get("chart_type"),
+        "chart_data": processed.get("chart_data", {}),
+        "count": processed.get("row_count", len(results)),
+        "execution_time": elapsed,
+    }
+
+
+@app.post("/sql/export")
+def export_sql_results(request: ExportRequest):
+    """
+    Exports query results as a downloadable CSV file.
+    Accepts either raw data list or executes provided SQL/query.
+    """
+    data = request.data
+    if data is None and (request.sql or request.query):
+        sql_to_run = request.sql
+        if not sql_to_run and request.query:
+            schema_context = get_schema_context(request.query, request.db_path)
+            sql_to_run = generate_sql(request.query, schema_context)
+
+        if sql_to_run:
+            results, err = execute_query(sql_to_run, db_path=request.db_path)
+            if err:
+                raise HTTPException(status_code=400, detail=f"Error executing SQL for export: {err}")
+            data = results
+        else:
+            data = []
+
+    if data is None:
+        data = []
+
+    output = io.StringIO()
+    if data:
+        writer = csv.DictWriter(output, fieldnames=list(data[0].keys()))
+        writer.writeheader()
+        writer.writerows(data)
+    else:
+        output.write("No data available\n")
+
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=query_results.csv"
+        }
     )
