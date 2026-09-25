@@ -99,7 +99,8 @@ def _initialize_sample_banking_db(file_path: str) -> None:
                 (1, 'Ramesh Sharma', 'Mumbai', 55000.0),
                 (2, 'Priya Patel', 'Pune', 82000.0),
                 (3, 'Amit Verma', 'Delhi', 34000.0),
-                (4, 'Sneha Kulkarni', 'Nagpur', 61000.0);
+                (4, 'Sneha Kulkarni', 'Nagpur', 61000.0),
+                (5, 'Vikram Singh', 'Bengaluru', 95000.0);
             """))
             conn.execute(text("""
                 INSERT INTO accounts (id, cust_id, account_type, balance) VALUES
