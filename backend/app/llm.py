@@ -29,6 +29,10 @@ def _get_language_instruction(target_language: Optional[str]) -> str:
         return (
             "CRITICAL LANGUAGE INSTRUCTION: You MUST respond exclusively in clear, fluent English regardless of the input language."
         )
+    elif "hinglish" in target_language.lower():
+        return (
+            "CRITICAL LANGUAGE INSTRUCTION: You MUST respond in conversational Hinglish (Hindi words written in English / Roman alphabet, e.g. 'Namaste! Main aapki help kar sakta hoon. Aapko kya jaanna hai?')."
+        )
     elif target_language == "Hindi" or "हिंदी" in target_language:
         return (
             "CRITICAL LANGUAGE INSTRUCTION: You MUST respond exclusively in authentic, fluent Hindi written in Devanagari script (हिंदी देवनागरी लिपि). Do NOT respond in English or Romanized script."
@@ -37,12 +41,9 @@ def _get_language_instruction(target_language: Optional[str]) -> str:
         return (
             "CRITICAL LANGUAGE INSTRUCTION: You MUST respond exclusively in authentic, fluent Marathi written in Devanagari script (मराठी देवनागरी लिपी). Use appropriate Marathi vocabulary and respectful tone (उदा. नमस्कार, नक्कीच, मदत)."
         )
-    elif target_language == "Hinglish":
-        return (
-            "CRITICAL LANGUAGE INSTRUCTION: You MUST respond in conversational Hinglish (Hindi words written in English / Roman alphabet, e.g. 'Namaste! Main aapki help kar sakta hoon. Aapko kya jaanna hai?')."
-        )
     else:
         return f"CRITICAL LANGUAGE INSTRUCTION: You MUST respond strictly in {target_language}."
+
 
 
 def _build_ollama_messages(
@@ -93,6 +94,7 @@ def generate_response(
         "model": LLM_MODEL,
         "messages": _build_ollama_messages(user_message, history, target_language, schema_context),
         "stream": False,
+        "think": False,
     }
 
     response = requests.post(url, json=payload, timeout=120)
@@ -114,6 +116,7 @@ def stream_response(
         "model": LLM_MODEL,
         "messages": _build_ollama_messages(user_message, history, target_language, schema_context),
         "stream": True,
+        "think": False,
     }
 
     with requests.post(url, json=payload, stream=True, timeout=120) as resp:

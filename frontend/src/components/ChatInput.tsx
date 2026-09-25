@@ -5,6 +5,7 @@ import { useState, useRef, useCallback, KeyboardEvent } from "react";
 interface ChatInputProps {
   onSend: (text: string) => void;
   isLoading: boolean;
+  placeholder?: string;
 }
 
 const SendIcon = ({ size = 18 }: { size?: number }) => (
@@ -23,7 +24,7 @@ const SendIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
-export function ChatInput({ onSend, isLoading }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading, placeholder }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -69,22 +70,21 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   return (
     <div
       style={{
-        padding: "12px 16px 16px",
-        background: "var(--bg-secondary)",
-        borderTop: "1px solid var(--border-subtle)",
+        padding: "10px 24px 14px",
+        background: "transparent",
       }}
     >
       <div
         style={{
           display: "flex",
-          alignItems: "flex-end",
-          gap: 10,
-          background: "var(--bg-elevated)",
-          borderRadius: "var(--radius-xl)",
-          border: `1px solid ${isFocused ? "var(--border-accent)" : "var(--border-subtle)"}`,
-          padding: "10px 12px 10px 16px",
-          transition: "border-color 0.2s ease",
-          boxShadow: isFocused ? "0 0 0 3px rgba(124,58,237,0.12)" : "none",
+          alignItems: "center",
+          gap: 12,
+          background: "rgba(16, 20, 36, 0.85)",
+          borderRadius: 28,
+          border: `1px solid ${isFocused ? "rgba(139, 92, 246, 0.5)" : "rgba(255, 255, 255, 0.08)"}`,
+          padding: "8px 14px 8px 20px",
+          transition: "all 0.2s ease",
+          boxShadow: isFocused ? "0 0 16px rgba(124, 58, 237, 0.2)" : "0 4px 20px rgba(0, 0, 0, 0.25)",
         }}
       >
         <textarea
@@ -94,18 +94,18 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder="Message MitraAI… (Enter to send, Shift+Enter for newline)"
+          placeholder={placeholder ?? "Message MitraAI... (Enter to send, Shift+Enter for newline)"}
           rows={1}
           disabled={isLoading}
           style={{
             flex: 1,
             minHeight: 24,
-            maxHeight: 144,
+            maxHeight: 120,
             overflowY: "auto",
             background: "transparent",
-            color: "var(--text-primary)",
-            fontSize: 15,
-            lineHeight: "24px",
+            color: "#f8fafc",
+            fontSize: 14,
+            lineHeight: "22px",
             resize: "none",
             outline: "none",
             border: "none",
@@ -122,29 +122,28 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
           disabled={!canSend}
           title="Send message"
           style={{
-            width: 38,
-            height: 38,
+            width: 34,
+            height: 34,
             borderRadius: "50%",
             background: canSend
-              ? "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)"
-              : "var(--bg-glass)",
-            border: `1px solid ${canSend ? "transparent" : "var(--border-subtle)"}`,
+              ? "linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)"
+              : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${canSend ? "transparent" : "rgba(255, 255, 255, 0.06)"}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            color: canSend ? "#fff" : "var(--text-muted)",
+            color: canSend ? "#fff" : "#475569",
             transition: "all 0.2s ease",
-            boxShadow: canSend ? "0 0 16px rgba(124,58,237,0.4)" : "none",
-            transform: canSend ? "scale(1)" : "scale(0.9)",
+            boxShadow: canSend ? "0 0 12px rgba(124, 58, 237, 0.5)" : "none",
             cursor: canSend ? "pointer" : "not-allowed",
           }}
         >
           {isLoading ? (
             <span
               style={{
-                width: 16,
-                height: 16,
+                width: 14,
+                height: 14,
                 border: "2px solid rgba(255,255,255,0.3)",
                 borderTopColor: "#fff",
                 borderRadius: "50%",
@@ -153,7 +152,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
               }}
             />
           ) : (
-            <SendIcon size={16} />
+            <SendIcon size={14} />
           )}
         </button>
       </div>
@@ -162,7 +161,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
         style={{
           textAlign: "center",
           fontSize: 11,
-          color: "var(--text-muted)",
+          color: "#475569",
           marginTop: 8,
         }}
       >

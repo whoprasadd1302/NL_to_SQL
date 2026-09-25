@@ -11,7 +11,15 @@ def init_engine():
     """Initializes SQLAlchemy engine with PostgreSQL, fallback to SQLite if connection fails."""
     try:
         if DATABASE_URL.startswith("postgresql"):
-            eng = create_engine(DATABASE_URL, pool_pre_ping=True, echo=False)
+            eng = create_engine(
+                DATABASE_URL,
+                pool_pre_ping=True,
+                pool_size=20,
+                max_overflow=20,
+                pool_timeout=10,
+                pool_recycle=1800,
+                echo=False,
+            )
             # Test connection
             with eng.connect() as conn:
                 conn.execute(text("SELECT 1"))

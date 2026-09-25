@@ -7,61 +7,54 @@ interface HeaderProps {
 }
 
 const SUPPORTED_LANGUAGES = [
-  { code: "Auto-Detect", label: "🌐 Auto-Detect" },
-  { code: "English", label: "🇬🇧 English" },
-  { code: "Hindi (हिंदी)", label: "🇮🇳 Hindi (हिंदी)" },
-  { code: "Marathi (मराठी)", label: "🚩 Marathi (मराठी)" },
-  { code: "Hinglish", label: "💬 Hinglish" },
+  { code: "Auto-Detect", label: "Auto-Detect" },
+  { code: "English", label: "English" },
+  { code: "Hindi (हिंदी)", label: "Hindi (हिंदी)" },
+  { code: "Marathi (मराठी)", label: "Marathi (मराठी)" },
+  { code: "Hinglish", label: "Hinglish" },
 ];
 
 export function Header({ isLoading, selectedLanguage, onLanguageChange }: HeaderProps) {
   return (
     <header
       style={{
-        height: "var(--header-height)",
-        minHeight: "var(--header-height)",
+        height: 56,
+        minHeight: 56,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 20px",
-        background: "var(--bg-secondary)",
-        borderBottom: "1px solid var(--border-subtle)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        padding: "0 24px",
+        background: "rgba(11, 13, 23, 0.8)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
       }}
     >
-      {/* Left: Title & Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span
-            style={{
-              fontWeight: 700,
-              fontSize: 16,
-              color: "var(--text-primary)",
-              letterSpacing: "-0.3px",
-            }}
-          >
-            MitraAI
-          </span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1 }}>
-            Multilingual AI Assistant
-          </span>
-        </div>
+      {/* Left: Title & Subtitle */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <span
+          style={{
+            fontWeight: 700,
+            fontSize: 15,
+            color: "#f8fafc",
+            letterSpacing: "-0.2px",
+          }}
+        >
+          MitraAI
+        </span>
+        <span style={{ fontSize: 11, color: "#64748b", lineHeight: 1.2 }}>
+          Multilingual AI Assistant
+        </span>
       </div>
 
-      {/* Center / Right: Language Selector & Status */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      {/* Right: Language Selector, Online Status & Model Pill */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         {/* Language Dropdown */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 6,
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border-medium)",
-            borderRadius: "var(--radius-md)",
-            padding: "4px 10px",
-            transition: "all 0.2s ease",
           }}
         >
           <label
@@ -69,40 +62,52 @@ export function Header({ isLoading, selectedLanguage, onLanguageChange }: Header
             style={{
               fontSize: 12,
               fontWeight: 500,
-              color: "var(--text-secondary)",
-              cursor: "pointer",
+              color: "#94a3b8",
             }}
           >
             Language:
           </label>
-          <select
-            id="language-select"
-            value={selectedLanguage}
-            onChange={(e) => onLanguageChange(e.target.value)}
+          <div
             style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--text-primary)",
-              fontSize: 12,
-              fontWeight: 600,
-              outline: "none",
-              cursor: "pointer",
-              padding: "2px 4px",
+              display: "flex",
+              alignItems: "center",
+              background: "rgba(22, 27, 46, 0.8)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: 20,
+              padding: "3px 10px 3px 8px",
+              gap: 4,
             }}
           >
-            {SUPPORTED_LANGUAGES.map((lang) => (
-              <option
-                key={lang.code}
-                value={lang.code}
-                style={{
-                  background: "#18181b",
-                  color: "#f4f4f5",
-                }}
-              >
-                {lang.label}
-              </option>
-            ))}
-          </select>
+            <span style={{ fontSize: 12 }}>🌐</span>
+            <select
+              id="language-select"
+              value={selectedLanguage}
+              onChange={(e) => onLanguageChange(e.target.value)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#e2e8f0",
+                fontSize: 12,
+                fontWeight: 500,
+                outline: "none",
+                cursor: "pointer",
+                padding: "2px 0",
+              }}
+            >
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <option
+                  key={lang.code}
+                  value={lang.code}
+                  style={{
+                    background: "#111422",
+                    color: "#f8fafc",
+                  }}
+                >
+                  {lang.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Status Indicator */}
@@ -131,7 +136,7 @@ export function Header({ isLoading, selectedLanguage, onLanguageChange }: Header
                 borderRadius: "50%",
                 background: "#22c55e",
                 display: "block",
-                boxShadow: "0 0 6px rgba(34,197,94,0.6)",
+                boxShadow: "0 0 8px rgba(34,197,94,0.7)",
               }}
             />
             <span style={{ fontSize: 12, color: "#22c55e", fontWeight: 500 }}>
@@ -143,10 +148,10 @@ export function Header({ isLoading, selectedLanguage, onLanguageChange }: Header
         {/* Model badge */}
         <div
           style={{
-            fontSize: 12,
-            color: "var(--text-accent)",
-            background: "rgba(124,58,237,0.12)",
-            border: "1px solid rgba(124,58,237,0.25)",
+            fontSize: 11,
+            color: "#c084fc",
+            background: "rgba(147, 51, 234, 0.15)",
+            border: "1px solid rgba(168, 85, 247, 0.3)",
             borderRadius: 99,
             padding: "3px 10px",
             fontWeight: 500,

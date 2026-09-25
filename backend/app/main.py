@@ -38,7 +38,15 @@ def startup_db_client():
         Base.metadata.create_all(bind=engine)
         with engine.begin() as conn:
             try:
-                conn.execute(text("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sql_result TEXT;"))
+                dialect = engine.dialect.name
+                if dialect == "postgresql":
+                    conn.execute(text("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sql_result TEXT;"))
+                elif dialect == "sqlite":
+                    # SQLite doesn't support IF NOT EXISTS on ALTER TABLE – check first
+                    cols = conn.execute(text("PRAGMA table_info(chat_messages)")).fetchall()
+                    col_names = [row[1] for row in cols]
+                    if "sql_result" not in col_names:
+                        conn.execute(text("ALTER TABLE chat_messages ADD COLUMN sql_result TEXT;"))
             except Exception:
                 pass
         logger.info("Successfully connected to database and initialized tables.")
@@ -415,18 +423,22 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 logger.warning(f"Streaming SQL auto-execution failed: {sql_err}")
 
             if accumulated_text.strip():
+                db_session = None
                 try:
                     sql_json = json.dumps(sql_result) if sql_result else None
-                    with SessionLocal() as db_session:
-                        crud.add_message(
-                            db_session,
-                            session_id=session_id,
-                            role="assistant",
-                            content=accumulated_text,
-                            sql_result=sql_json
-                        )
+                    db_session = SessionLocal()
+                    crud.add_message(
+                        db_session,
+                        session_id=session_id,
+                        role="assistant",
+                        content=accumulated_text,
+                        sql_result=sql_json
+                    )
                 except Exception as save_err:
                     logger.warning(f"Failed to save streamed assistant message to DB: {save_err}")
+                finally:
+                    if db_session:
+                        db_session.close()
 
             if sql_result is not None:
                 yield f"data: {json.dumps({'sql_result': sql_result})}\n\n"

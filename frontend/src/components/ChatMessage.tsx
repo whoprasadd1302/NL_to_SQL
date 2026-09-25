@@ -48,6 +48,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
     const codeMatch = line.match(/^```(\w*)$/);
     if (codeMatch) {
       const lang = codeMatch[1] || "";
+      const blockStart = i; // capture start index for stable key
       const codeLines: string[] = [];
       i++;
       while (i < lines.length && !lines[i].startsWith("```")) {
@@ -56,7 +57,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
       }
       i++; // skip closing ```
       result.push(
-        <CodeBlock key={i} lang={lang} code={codeLines.join("\n")} />
+        <CodeBlock key={`code-${blockStart}`} lang={lang} code={codeLines.join("\n")} />
       );
       continue;
     }
@@ -314,9 +315,16 @@ function SqlResultTable({ result }: { result: SqlResult }) {
               letterSpacing: 0.5,
             }}
           >
-            📊 {result.row_count} row{result.row_count !== 1 ? "s" : ""} • {result.columns.length} columns
+            {result.truncated
+              ? `📊 Showing ${result.fetched_count ?? result.rows.length} of ${result.row_count.toLocaleString()} rows • ${result.columns.length} columns`
+              : `📊 ${result.row_count} row${result.row_count !== 1 ? "s" : ""} • ${result.columns.length} columns`}
           </span>
-          {result.rows.length > 10 && (
+          {result.truncated && (
+            <span style={{ fontSize: 11, color: "#f59e0b" }}>
+              ⚠️ Results limited to {result.fetched_count ?? 100} rows
+            </span>
+          )}
+          {!result.truncated && result.rows.length > 10 && (
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
               (scroll to view all {result.rows.length} rows)
             </span>
@@ -543,12 +551,21 @@ export function ChatMessage({ message }: ChatMessageProps) {
           {/* Rendered markdown content */}
           {message.isError ? (
             <p>{message.content}</p>
-          ) : (
+          ) : message.content ? (
             renderMarkdown(message.content)
-          )}
+          ) : message.isStreaming ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Thinking</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#a855f7", display: "inline-block", animation: "typingBlink 1.2s infinite ease-in-out" }} />
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#a855f7", display: "inline-block", animation: "typingBlink 1.2s infinite ease-in-out 0.2s" }} />
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#a855f7", display: "inline-block", animation: "typingBlink 1.2s infinite ease-in-out 0.4s" }} />
+              </div>
+            </div>
+          ) : null}
 
           {/* Streaming cursor */}
-          {message.isStreaming && (
+          {message.isStreaming && message.content && (
             <span
               style={{
                 display: "inline-block",
@@ -569,7 +586,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           )}
         </div>
         <span style={{ fontSize: 11, color: "var(--text-muted)", paddingLeft: 4 }}>
-          MitraAI {message.isStreaming ? "· typing…" : `· ${formatTime(message.timestamp)}`}
+          MitraAI {message.isStreaming ? "· thinking…" : `· ${formatTime(message.timestamp)}`}
         </span>
       </div>
     </div>

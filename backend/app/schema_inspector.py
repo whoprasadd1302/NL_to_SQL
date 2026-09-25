@@ -1,3 +1,4 @@
+import time
 import logging
 from typing import Dict, List, Any
 from sqlalchemy import inspect, text
@@ -5,12 +6,21 @@ from .database import engine
 
 logger = logging.getLogger("mitraai")
 
+_schema_cache: Dict[str, Any] = {}
+_schema_cache_time: float = 0
 
-def get_database_schema() -> Dict[str, Any]:
+
+def get_database_schema(force_refresh: bool = False) -> Dict[str, Any]:
     """
     Introspects the connected database and returns structured schema information
     including tables, columns, data types, primary keys, and foreign keys.
+    Cached in memory for 60 seconds to optimize response speed.
     """
+    global _schema_cache, _schema_cache_time
+    now = time.time()
+    if not force_refresh and _schema_cache and (now - _schema_cache_time < 60):
+        return _schema_cache
+
     try:
         inspector = inspect(engine)
         table_names = inspector.get_table_names()
@@ -54,10 +64,12 @@ def get_database_schema() -> Dict[str, Any]:
                 ],
             }
 
+        _schema_cache = schema_info
+        _schema_cache_time = now
         return schema_info
     except Exception as e:
         logger.error(f"Error inspecting database schema: {e}")
-        return {}
+        return _schema_cache or {}
 
 
 def format_schema_for_prompt(schema_info: Dict[str, Any]) -> str:
@@ -108,11 +120,22 @@ def execute_safe_sql(query: str, max_rows: int = 100) -> Dict[str, Any]:
             raw_rows = result.fetchmany(max_rows)
             # Convert row tuples to list of serializable dicts or values
             rows = [list(row) for row in raw_rows]
+
+            # Try to get true total row count with a COUNT(*) wrapper
+            total_count = len(rows)
+            try:
+                count_result = connection.execute(text(f"SELECT COUNT(*) FROM ({query_clean}) AS _count_query"))
+                total_count = count_result.scalar() or len(rows)
+            except Exception:
+                total_count = len(rows)
+
             return {
                 "success": True,
                 "columns": columns,
                 "rows": rows,
-                "row_count": len(rows),
+                "row_count": total_count,
+                "fetched_count": len(rows),
+                "truncated": len(rows) < total_count,
                 "error": None,
             }
     except Exception as e:

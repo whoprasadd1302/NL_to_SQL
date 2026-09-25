@@ -4,8 +4,6 @@ import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-inter",
   display: "swap",
 });
 
@@ -21,8 +19,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="h-full flex flex-col antialiased">{children}</body>
+    <html lang="en">
+      <body className={inter.className} style={{ margin: 0, padding: 0, height: "100%", width: "100%", overflow: "hidden", background: "#080911" }}>
+        {children}
+      </body>
     </html>
   );
 }

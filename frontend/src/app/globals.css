@@ -2,30 +2,30 @@
 
 /* ─── CSS Design Tokens ────────────────────────────────────────── */
 :root {
-  --bg-primary:     #0a0b14;
-  --bg-secondary:   #0f1117;
-  --bg-surface:     #141824;
-  --bg-elevated:    #1c2033;
+  --bg-primary:     #080911;
+  --bg-secondary:   #0d0e19;
+  --bg-surface:     #121524;
+  --bg-elevated:    #161a2e;
   --bg-glass:       rgba(255, 255, 255, 0.04);
-  --bg-glass-hover: rgba(255, 255, 255, 0.07);
+  --bg-glass-hover: rgba(255, 255, 255, 0.08);
 
   --accent-purple:  #7c3aed;
-  --accent-indigo:  #4f46e5;
+  --accent-indigo:  #6366f1;
   --accent-violet:  #8b5cf6;
-  --accent-glow:    rgba(124, 58, 237, 0.35);
-  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  --accent-glow:    rgba(124, 58, 237, 0.4);
+  --accent-gradient: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
 
   --user-bubble:    linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
-  --user-bubble-shadow: 0 4px 24px rgba(124, 58, 237, 0.3);
+  --user-bubble-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
 
-  --text-primary:   #f1f5f9;
+  --text-primary:   #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted:     #475569;
-  --text-accent:    #a78bfa;
+  --text-accent:    #c084fc;
 
   --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-medium:  rgba(255, 255, 255, 0.1);
-  --border-accent:  rgba(124, 58, 237, 0.4);
+  --border-accent:  rgba(139, 92, 246, 0.4);
 
   --radius-sm:  6px;
   --radius-md:  12px;
@@ -37,9 +37,9 @@
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
   --shadow-glow: 0 0 24px var(--accent-glow);
 
-  --sidebar-width: 260px;
-  --header-height: 60px;
-  --input-area-height: 96px;
+  --sidebar-width: 250px;
+  --header-height: 56px;
+  --input-area-height: 90px;
 }
 
 /* ─── Reset & Base ──────────────────────────────────────────────── */

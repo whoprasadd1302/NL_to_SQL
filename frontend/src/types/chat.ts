@@ -5,6 +5,8 @@ export interface SqlResult {
   columns: string[];
   rows: (string | number | null)[][];
   row_count: number;
+  fetched_count?: number;
+  truncated?: boolean;
   error?: string | null;
 }
 

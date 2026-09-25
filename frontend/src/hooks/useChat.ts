@@ -337,15 +337,21 @@ export function useChat() {
           id: generateId(),
           role: "assistant",
           content:
-            "⚠️ Could not reach the backend. Make sure the FastAPI backend is running on http://localhost:8000.",
+            err instanceof Error && err.message.includes("backend")
+              ? err.message
+              : "⚠️ Could not reach the backend. Make sure the FastAPI backend is running on http://localhost:8000.",
           timestamp: new Date(),
           isError: true,
         };
 
         setState((prev) => ({
           ...prev,
+          // Remove any empty streaming placeholder, then append error message
           messages: prev.messages
-            .filter((m) => m.content.length > 0 || !m.isStreaming)
+            .map((m) =>
+              m.isStreaming ? { ...m, isStreaming: false } : m
+            )
+            .filter((m) => m.content.length > 0 || !m.isError)
             .concat(errorMessage),
           isLoading: false,
           error: err instanceof Error ? err.message : "Unknown error",

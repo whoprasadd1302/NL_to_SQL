@@ -77,42 +77,42 @@ export function Sidebar({
   return (
     <aside
       style={{
-        width: "var(--sidebar-width)",
-        minWidth: "var(--sidebar-width)",
+        width: 250,
+        minWidth: 250,
         height: "100%",
-        background: "var(--bg-secondary)",
-        borderRight: "1px solid var(--border-subtle)",
+        background: "rgba(10, 12, 22, 0.95)",
+        borderRight: "1px solid rgba(255, 255, 255, 0.05)",
         display: "flex",
         flexDirection: "column",
-        padding: "20px 12px",
+        padding: "16px 12px",
         gap: 0,
       }}
     >
       {/* Branding */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingLeft: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, paddingLeft: 4 }}>
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
+            width: 38,
+            height: 38,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: 800,
             color: "#fff",
-            boxShadow: "0 0 16px rgba(124,58,237,0.45)",
-            letterSpacing: "-1px",
+            boxShadow: "0 0 20px rgba(124, 58, 237, 0.4)",
+            letterSpacing: "-0.5px",
           }}
         >
           M
         </div>
         <div>
-          <p style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>
+          <p style={{ fontWeight: 700, fontSize: 15, color: "#f8fafc", letterSpacing: "-0.2px" }}>
             MitraAI
           </p>
-          <p style={{ fontSize: 11, color: "var(--text-muted)" }}>Multilingual Assistant</p>
+          <p style={{ fontSize: 11, color: "#64748b" }}>Multilingual Assistant</p>
         </div>
       </div>
 
@@ -125,24 +125,24 @@ export function Sidebar({
           display: "flex",
           alignItems: "center",
           gap: 8,
-          padding: "10px 14px",
-          borderRadius: "var(--radius-md)",
-          background: "linear-gradient(135deg, rgba(124,58,237,0.2) 0%, rgba(79,70,229,0.2) 100%)",
-          border: "1px solid rgba(124,58,237,0.35)",
-          color: "var(--text-primary)",
-          fontSize: 14,
+          padding: "9px 14px",
+          borderRadius: 12,
+          background: "rgba(30, 27, 58, 0.7)",
+          border: "1px solid rgba(124, 58, 237, 0.35)",
+          color: "#f1f5f9",
+          fontSize: 13,
           fontWeight: 600,
           transition: "all 0.2s ease",
           cursor: "pointer",
-          marginBottom: 16,
+          marginBottom: 18,
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-accent)";
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 12px rgba(124,58,237,0.25)";
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(139, 92, 246, 0.6)";
+          (e.currentTarget as HTMLButtonElement).style.background = "rgba(42, 36, 78, 0.85)";
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(124,58,237,0.35)";
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+          (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(124, 58, 237, 0.35)";
+          (e.currentTarget as HTMLButtonElement).style.background = "rgba(30, 27, 58, 0.7)";
         }}
       >
         <PlusIcon />
@@ -156,9 +156,9 @@ export function Sidebar({
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.8px",
-          color: "var(--text-muted)",
+          color: "#475569",
           paddingLeft: 6,
-          marginBottom: 10,
+          marginBottom: 8,
         }}
       >
         Recent Conversations
