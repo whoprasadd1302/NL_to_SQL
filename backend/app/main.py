@@ -295,8 +295,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
     # Introspect database schema for NL-to-SQL context
     schema_context = None
     try:
-<<<<<<< HEAD
-=======
         current_schema = get_database_schema()
         if current_schema:
             schema_context = format_schema_for_prompt(current_schema)
@@ -305,7 +303,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
 
     try:
         # 2. Generate LLM response with conversation context, target language, and DB schema
->>>>>>> 9b3a9e4 (feat: Add PostgreSQL dataset integration, automatic NL-to-SQL execution, and markdown/table rendering in UI)
         response = generate_response(
             request.message,
             history=prior_messages,
@@ -313,8 +310,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
             schema_context=schema_context
         )
 
-<<<<<<< HEAD
-=======
         # 3. Auto-execute any SQL query found in the LLM response
         sql_result = None
         try:
@@ -323,7 +318,6 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
             logger.warning(f"SQL auto-execution failed: {e}")
 
         # 4. Save assistant message to DB
->>>>>>> 9b3a9e4 (feat: Add PostgreSQL dataset integration, automatic NL-to-SQL execution, and markdown/table rendering in UI)
         try:
             crud.add_message(db, session_id=session_id, role="assistant", content=response)
         except Exception as e:
@@ -356,8 +350,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     session_id = request.session_id or "default"
     target_language = request.target_language or "Auto-Detect"
 
-<<<<<<< HEAD
-=======
     # Introspect database schema for NL-to-SQL context
     schema_context = None
     try:
@@ -368,7 +360,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
         logger.warning(f"Could not introspect database schema: {e}")
 
     # Fetch prior history for context memory
->>>>>>> 9b3a9e4 (feat: Add PostgreSQL dataset integration, automatic NL-to-SQL execution, and markdown/table rendering in UI)
     prior_messages = []
     try:
         raw_msgs = crud.get_messages(db, session_id=session_id)
@@ -401,8 +392,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 except Exception as save_err:
                     logger.warning(f"Failed to save streamed assistant message to DB: {save_err}")
 
-<<<<<<< HEAD
-=======
             # Auto-execute any SQL found in the full response
             sql_result = None
             try:
@@ -414,7 +403,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 yield f"data: {json.dumps({'sql_result': sql_result})}\n\n"
 
             # Signal stream end
->>>>>>> 9b3a9e4 (feat: Add PostgreSQL dataset integration, automatic NL-to-SQL execution, and markdown/table rendering in UI)
             yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -429,7 +417,6 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     )
 
 
-<<<<<<< HEAD
 # ── NL-to-SQL Endpoints ───────────────────────────────────────────────
 
 @app.get("/sql/schema")
@@ -666,7 +653,8 @@ def export_sql_results(request: ExportRequest):
             "Content-Disposition": "attachment; filename=query_results.csv"
         }
     )
-=======
+
+
 # ── Database & NL-to-SQL Endpoints ─────────────────────────────────────
 
 class SqlExecuteRequest(BaseModel):
@@ -718,4 +706,4 @@ def execute_sql_endpoint(req: SqlExecuteRequest):
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
     result = execute_safe_sql(req.query, max_rows=req.max_rows or 100)
     return result
->>>>>>> 9b3a9e4 (feat: Add PostgreSQL dataset integration, automatic NL-to-SQL execution, and markdown/table rendering in UI)
+
