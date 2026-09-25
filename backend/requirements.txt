@@ -4,4 +4,7 @@ python-dotenv
 pydantic
 requests
 sqlalchemy
-psycopg2-binary
+psycopg2-binary
+pandas
+openpyxl
+

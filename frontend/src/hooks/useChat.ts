@@ -258,7 +258,7 @@ export function useChat() {
             ...prev,
             messages: prev.messages.map((m) =>
               m.id === assistantId
-                ? { ...m, content: data.response, isStreaming: false }
+                ? { ...m, content: data.response, isStreaming: false, sqlResult: data.sql_result ?? null }
                 : m
             ),
             isLoading: false,
@@ -294,6 +294,15 @@ export function useChat() {
                     ),
                   }));
                   scrollToBottom();
+                } else if (data.sql_result) {
+                  setState((prev) => ({
+                    ...prev,
+                    messages: prev.messages.map((m) =>
+                      m.id === assistantId
+                        ? { ...m, sqlResult: data.sql_result }
+                        : m
+                    ),
+                  }));
                 } else if (data.done) {
                   setState((prev) => ({
                     ...prev,

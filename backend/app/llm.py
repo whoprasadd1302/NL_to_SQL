@@ -5,10 +5,17 @@ from typing import Generator, List, Dict, Optional
 from .config import OLLAMA_BASE_URL, LLM_MODEL
 
 _BASE_SYSTEM_PROMPT = (
-    "You are MitraAI (मित्र AI), an intelligent and helpful multilingual conversational AI assistant. "
-    "Guidelines:\n"
-    "1. Be polite, concise, structured, and helpful. Use markdown formatting when appropriate.\n"
-    "2. Maintain conversation context across turns."
+    "You are MitraAI (मित्र AI), an intelligent, helpful multilingual conversational AI assistant with deep expertise in Natural Language to SQL (NL-to-SQL) analysis.\n\n"
+    "STRICT RESPONSE RULES:\n"
+    "1. For ANY question that involves retrieving, listing, counting, filtering, or aggregating data from the database:\n"
+    "   a. First output ONLY the SQL query enclosed in a ```sql ... ``` code block. No preamble before the code block.\n"
+    "   b. After the code block, write a single concise sentence summarising what the query does or what the result means.\n"
+    "   c. Do NOT write any text before the ```sql block for data questions.\n"
+    "   d. Do NOT include placeholder commentary like 'Here is the query' or 'I hope this helps'.\n"
+    "2. For non-data general questions, respond naturally and helpfully in markdown.\n"
+    "3. Use markdown formatting (bold, lists, code) where it improves clarity.\n"
+    "4. Maintain conversation context across turns.\n"
+    "5. Keep responses concise and to the point."
 )
 
 
@@ -41,11 +48,22 @@ def _get_language_instruction(target_language: Optional[str]) -> str:
 def _build_ollama_messages(
     user_message: str,
     history: Optional[List[Dict[str, str]]] = None,
-    target_language: Optional[str] = "Auto-Detect"
+    target_language: Optional[str] = "Auto-Detect",
+    schema_context: Optional[str] = None
 ) -> List[Dict[str, str]]:
-    """Builds messages list with dynamic language instructions and multi-turn context."""
+    """Builds messages list with dynamic language instructions, database schema context, and multi-turn context."""
     lang_instruction = _get_language_instruction(target_language)
-    system_prompt = f"{_BASE_SYSTEM_PROMPT}\n3. {lang_instruction}"
+    
+    schema_section = ""
+    if schema_context and schema_context.strip():
+        schema_section = (
+            f"\n\n--- CONNECTED DATABASE SCHEMA ---\n{schema_context}\n---------------------------------\n"
+            "IMPORTANT: Use ONLY the tables and columns defined above when writing SQL queries.\n"
+            "Write valid SQL SELECT queries for the connected database (PostgreSQL/SQL). The system will auto-execute your SQL query and display results as a table to the user.\n"
+            "Always wrap the query in ```sql ... ``` fences."
+        )
+
+    system_prompt = f"{_BASE_SYSTEM_PROMPT}\n4. {lang_instruction}{schema_section}"
 
     messages = [{"role": "system", "content": system_prompt}]
 
@@ -65,14 +83,15 @@ def _build_ollama_messages(
 def generate_response(
     user_message: str,
     history: Optional[List[Dict[str, str]]] = None,
-    target_language: Optional[str] = "Auto-Detect"
+    target_language: Optional[str] = "Auto-Detect",
+    schema_context: Optional[str] = None
 ) -> str:
-    """Non-streaming: returns full response adhering to chosen target language."""
+    """Non-streaming: returns full response adhering to chosen target language and database schema."""
     url = f"{OLLAMA_BASE_URL}/api/chat"
 
     payload = {
         "model": LLM_MODEL,
-        "messages": _build_ollama_messages(user_message, history, target_language),
+        "messages": _build_ollama_messages(user_message, history, target_language, schema_context),
         "stream": False,
     }
 
@@ -85,14 +104,15 @@ def generate_response(
 def stream_response(
     user_message: str,
     history: Optional[List[Dict[str, str]]] = None,
-    target_language: Optional[str] = "Auto-Detect"
+    target_language: Optional[str] = "Auto-Detect",
+    schema_context: Optional[str] = None
 ) -> Generator[str, None, None]:
-    """Streaming: yields individual tokens adhering to chosen target language."""
+    """Streaming: yields individual tokens adhering to chosen target language and database schema."""
     url = f"{OLLAMA_BASE_URL}/api/chat"
 
     payload = {
         "model": LLM_MODEL,
-        "messages": _build_ollama_messages(user_message, history, target_language),
+        "messages": _build_ollama_messages(user_message, history, target_language, schema_context),
         "stream": True,
     }
 

@@ -1,5 +1,13 @@
 export type Role = "user" | "assistant";
 
+export interface SqlResult {
+  success: boolean;
+  columns: string[];
+  rows: (string | number | null)[][];
+  row_count: number;
+  error?: string | null;
+}
+
 export interface Message {
   id: string;
   role: Role;
@@ -7,6 +15,7 @@ export interface Message {
   timestamp: Date;
   isError?: boolean;
   isStreaming?: boolean;
+  sqlResult?: SqlResult | null;
 }
 
 export interface ChatSession {
