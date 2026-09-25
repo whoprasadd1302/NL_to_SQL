@@ -89,12 +89,20 @@ def get_messages(db: Session, session_id: str = "default"):
     )
 
 
-def add_message(db: Session, session_id: str, role: str, content: str, msg_id: Optional[str] = None) -> ChatMessage:
+def add_message(
+    db: Session,
+    session_id: str,
+    role: str,
+    content: str,
+    msg_id: Optional[str] = None,
+    sql_result: Optional[str] = None
+) -> ChatMessage:
     session = get_or_create_session(db, session_id)
     msg_kwargs = {
         "session_id": session_id,
         "role": role,
         "content": content,
+        "sql_result": sql_result,
     }
     if msg_id:
         msg_kwargs["id"] = msg_id

@@ -28,6 +28,8 @@ class ChatMessage(Base):
     session_id = Column(String, ForeignKey("chat_sessions.id"), nullable=False)
     role = Column(String, nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
+    sql_result = Column(Text, nullable=True)  # Stores JSON string of executed SQL result
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
+

@@ -62,6 +62,7 @@ export function useChat() {
           role: m.role,
           content: m.content,
           timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+          sqlResult: m.sql_result ?? null,
         }));
         setState({
           messages: loadedMessages,

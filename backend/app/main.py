@@ -36,6 +36,11 @@ app = FastAPI(
 def startup_db_client():
     try:
         Base.metadata.create_all(bind=engine)
+        with engine.begin() as conn:
+            try:
+                conn.execute(text("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sql_result TEXT;"))
+            except Exception:
+                pass
         logger.info("Successfully connected to database and initialized tables.")
     except Exception as e:
         logger.warning(
@@ -92,6 +97,7 @@ class MessageSchema(BaseModel):
     role: str
     content: str
     timestamp: str
+    sql_result: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -243,15 +249,30 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
 def get_history(session_id: str = Query("default"), db: Session = Depends(get_db)):
     try:
         messages = crud.get_messages(db, session_id=session_id)
-        return [
-            MessageSchema(
-                id=m.id,
-                role=m.role,
-                content=m.content,
-                timestamp=m.timestamp.isoformat() if m.timestamp else "",
+        schema_messages = []
+        for m in messages:
+            parsed_sql = None
+            if hasattr(m, 'sql_result') and m.sql_result:
+                try:
+                    parsed_sql = json.loads(m.sql_result)
+                except Exception:
+                    pass
+            # Legacy fallback: if sql_result wasn't saved yet in older rows, extract and execute
+            if parsed_sql is None and m.role == "assistant" and "```sql" in m.content:
+                try:
+                    parsed_sql = extract_and_execute_sql(m.content)
+                except Exception:
+                    pass
+            schema_messages.append(
+                MessageSchema(
+                    id=m.id,
+                    role=m.role,
+                    content=m.content,
+                    timestamp=m.timestamp.isoformat() if m.timestamp else "",
+                    sql_result=parsed_sql,
+                )
             )
-            for m in messages
-        ]
+        return schema_messages
     except Exception as e:
         logger.error(f"Error fetching history: {e}")
         return []
@@ -317,9 +338,10 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         except Exception as e:
             logger.warning(f"SQL auto-execution failed: {e}")
 
-        # 4. Save assistant message to DB
+        # 4. Save assistant message to DB with sql_result
         try:
-            crud.add_message(db, session_id=session_id, role="assistant", content=response)
+            sql_json = json.dumps(sql_result) if sql_result else None
+            crud.add_message(db, session_id=session_id, role="assistant", content=response, sql_result=sql_json)
         except Exception as e:
             logger.warning(f"Could not save assistant message to DB: {e}")
 
@@ -385,19 +407,26 @@ def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 payload = json.dumps({"token": token})
                 yield f"data: {payload}\n\n"
 
-            if accumulated_text.strip():
-                try:
-                    with SessionLocal() as db_session:
-                        crud.add_message(db_session, session_id=session_id, role="assistant", content=accumulated_text)
-                except Exception as save_err:
-                    logger.warning(f"Failed to save streamed assistant message to DB: {save_err}")
-
             # Auto-execute any SQL found in the full response
             sql_result = None
             try:
                 sql_result = extract_and_execute_sql(accumulated_text)
             except Exception as sql_err:
                 logger.warning(f"Streaming SQL auto-execution failed: {sql_err}")
+
+            if accumulated_text.strip():
+                try:
+                    sql_json = json.dumps(sql_result) if sql_result else None
+                    with SessionLocal() as db_session:
+                        crud.add_message(
+                            db_session,
+                            session_id=session_id,
+                            role="assistant",
+                            content=accumulated_text,
+                            sql_result=sql_json
+                        )
+                except Exception as save_err:
+                    logger.warning(f"Failed to save streamed assistant message to DB: {save_err}")
 
             if sql_result is not None:
                 yield f"data: {json.dumps({'sql_result': sql_result})}\n\n"

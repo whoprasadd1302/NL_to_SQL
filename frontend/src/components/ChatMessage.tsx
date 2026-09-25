@@ -231,8 +231,10 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   );
 }
 
-/** Renders a SQL query result as a styled table */
+/** Renders a SQL query result as a styled table with 10-12 row vertical scroll and horizontal scroll for all columns */
 function SqlResultTable({ result }: { result: SqlResult }) {
+  const [downloading, setDownloading] = useState(false);
+
   if (!result.success) {
     return (
       <div
@@ -259,65 +261,152 @@ function SqlResultTable({ result }: { result: SqlResult }) {
     );
   }
 
+  const handleExportCsv = () => {
+    setDownloading(true);
+    try {
+      const headers = result.columns.join(",");
+      const csvRows = result.rows.map((row) =>
+        row
+          .map((val) => {
+            if (val === null || val === undefined) return '""';
+            const str = String(val).replace(/"/g, '""');
+            return `"${str}"`;
+          })
+          .join(",")
+      );
+      const csvContent = "data:text/csv;charset=utf-8," + [headers, ...csvRows].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `query_results_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Failed to export CSV:", e);
+    } finally {
+      setTimeout(() => setDownloading(false), 1200);
+    }
+  };
+
   return (
-    <div style={{ marginTop: 12, overflowX: "auto" }}>
-      {/* Row count badge */}
+    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Table control bar */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
           gap: 8,
-          marginBottom: 8,
         }}
       >
-        <span
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#a78bfa",
+              background: "rgba(124,58,237,0.15)",
+              border: "1px solid rgba(124,58,237,0.25)",
+              padding: "3px 10px",
+              borderRadius: 99,
+              letterSpacing: 0.5,
+            }}
+          >
+            📊 {result.row_count} row{result.row_count !== 1 ? "s" : ""} • {result.columns.length} columns
+          </span>
+          {result.rows.length > 10 && (
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              (scroll to view all {result.rows.length} rows)
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={handleExportCsv}
           style={{
             fontSize: 11,
-            fontWeight: 600,
-            color: "#a78bfa",
-            background: "rgba(124,58,237,0.15)",
-            border: "1px solid rgba(124,58,237,0.25)",
-            padding: "2px 10px",
-            borderRadius: 99,
-            letterSpacing: 0.5,
+            fontWeight: 500,
+            color: downloading ? "#4ade80" : "#a78bfa",
+            background: "rgba(124,58,237,0.12)",
+            border: "1px solid rgba(124,58,237,0.3)",
+            padding: "3px 10px",
+            borderRadius: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(124,58,237,0.25)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(124,58,237,0.12)";
           }}
         >
-          📊 {result.row_count} row{result.row_count !== 1 ? "s" : ""} returned
-        </span>
+          {downloading ? "✓ Exported" : "📥 Export CSV"}
+        </button>
       </div>
+
+      {/* Scrollable table container (10-12 rows height max, with sticky header and horizontal scroll) */}
       <div
         style={{
           borderRadius: 10,
-          overflow: "hidden",
-          border: "1px solid rgba(124,58,237,0.2)",
+          maxHeight: "390px",
+          overflowY: "auto",
+          overflowX: "auto",
+          border: "1px solid rgba(124,58,237,0.25)",
+          background: "#0c0e18",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
         }}
       >
         <table
           style={{
             width: "100%",
-            borderCollapse: "collapse",
+            minWidth: "max-content",
+            borderCollapse: "separate",
+            borderSpacing: 0,
             fontSize: 13,
             fontFamily: "'Inter', sans-serif",
           }}
         >
           <thead>
-            <tr
-              style={{
-                background: "rgba(124,58,237,0.18)",
-              }}
-            >
+            <tr>
+              <th
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 10,
+                  padding: "10px 14px",
+                  textAlign: "center",
+                  fontWeight: 600,
+                  color: "#94a3b8",
+                  fontSize: 11,
+                  background: "#161828",
+                  borderBottom: "2px solid rgba(124,58,237,0.35)",
+                  width: 48,
+                }}
+              >
+                #
+              </th>
               {result.columns.map((col) => (
                 <th
                   key={col}
                   style={{
-                    padding: "9px 14px",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 10,
+                    padding: "10px 16px",
                     textAlign: "left",
                     fontWeight: 600,
                     color: "#c4b5fd",
                     fontSize: 12,
                     letterSpacing: 0.5,
                     textTransform: "uppercase",
-                    borderBottom: "1px solid rgba(124,58,237,0.25)",
+                    background: "#161828",
+                    borderBottom: "2px solid rgba(124,58,237,0.35)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -333,35 +422,46 @@ function SqlResultTable({ result }: { result: SqlResult }) {
                 style={{
                   background:
                     ri % 2 === 0
-                      ? "rgba(255,255,255,0.02)"
+                      ? "rgba(255,255,255,0.015)"
                       : "rgba(255,255,255,0.04)",
-                  transition: "background 0.15s",
+                  transition: "background 0.15s ease",
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLTableRowElement).style.background =
-                    "rgba(124,58,237,0.08)";
+                    "rgba(124,58,237,0.12)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLTableRowElement).style.background =
                     ri % 2 === 0
-                      ? "rgba(255,255,255,0.02)"
+                      ? "rgba(255,255,255,0.015)"
                       : "rgba(255,255,255,0.04)";
                 }}
               >
+                {/* Row index */}
+                <td
+                  style={{
+                    padding: "8px 12px",
+                    textAlign: "center",
+                    color: "var(--text-muted)",
+                    fontSize: 11,
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    userSelect: "none",
+                  }}
+                >
+                  {ri + 1}
+                </td>
+                {/* Data cells */}
                 {row.map((cell, ci) => (
                   <td
                     key={ci}
                     style={{
-                      padding: "8px 14px",
+                      padding: "8px 16px",
                       color:
                         cell === null
                           ? "var(--text-muted)"
                           : "var(--text-primary)",
                       fontStyle: cell === null ? "italic" : "normal",
                       borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      maxWidth: 280,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
                     title={cell === null ? "NULL" : String(cell)}
